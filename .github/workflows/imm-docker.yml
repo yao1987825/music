@@ -91,10 +91,10 @@ jobs:
 
       - name: Write information to docker-image.txt
         run: |
-          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
              echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}" > docker-image.txt
           else
-             echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}" > docker-image.txt
+             echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}" > docker-image.txt
           fi
           
       - name: Upload Docker Image to Release
