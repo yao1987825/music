@@ -16,8 +16,8 @@ jobs:
 
       - name: Download rootfs
         run: |
-          wget https://downloads.immortalwrt.org/releases/24.10.0-rc3/targets/armsr/armv8/immortalwrt-24.10.0-rc3-armsr-armv8-rootfs.tar.gz
-          mv immortalwrt-24.10.0-rc3-armsr-armv8-rootfs.tar.gz rootfs.tar.gz
+          wget https://downloads.immortalwrt.org/releases/24.10.0-rc3/targets/x86/64/immortalwrt-24.10.0-rc3-x86-64-rootfs.tar.gz
+          mv immortalwrt-24.10.0-rc3-x86-64-rootfs.tar.gz rootfs.tar.gz
 
       - name: Extract rootfs
         run: tar xzf rootfs.tar.gz
