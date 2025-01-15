@@ -22,7 +22,7 @@ jobs:
 
       - name: Download rootfs
         run: |
-          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
             wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/x86/64/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz
             mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz rootfs.tar.gz
           else
@@ -49,7 +49,7 @@ jobs:
       
       - name: Tag Docker Image
         run: |
-          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
               docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
             else
               docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}
@@ -60,19 +60,21 @@ jobs:
 
       - name: Push Docker Image
         run: |
-          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
              docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
           else
              docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}
           fi
 
-      - name: Set Release Name
+      - name: Set Release Name and Tag
         id: set_release_name
         run: |
-          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
-            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-x86-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+             echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-x86-${{ github.run_id }}" >> $GITHUB_OUTPUT
+             echo "tag_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-x86-${{ github.run_id }}" >> $GITHUB_OUTPUT
           else
-            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-armv8-${{ github.run_id }}" >> $GITHUB_OUTPUT
+              echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-armv8-${{ github.run_id }}" >> $GITHUB_OUTPUT
+              echo "tag_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-armv8-${{ github.run_id }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
@@ -81,7 +83,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
-          tag_name: ${{ github.run_id }}
+          tag_name: ${{ steps.set_release_name.outputs.tag_name }}
           release_name: ${{ steps.set_release_name.outputs.release_name }}
           body: |
             Docker image for ImmortalWrt based on build ${{ github.run_id }}.
@@ -91,7 +93,7 @@ jobs:
 
       - name: Write information to docker-image.txt
         run: |
-          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
              echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}" > docker-image.txt
           else
              echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}" > docker-image.txt
