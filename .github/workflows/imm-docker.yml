@@ -1,14 +1,20 @@
 name: Build and Publish ImmortalWrt Docker Image
 
 on:
-  workflow_dispatch: # 手动触发
+  workflow_dispatch:
   push:
     branches:
-      - main # 或其他你想要触发构建的分支
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86, arm64]
+    
+    env:
+      IMMORTALWRT_VERSION: 24.10.0-rc3
 
     steps:
       - name: Checkout code
@@ -16,9 +22,14 @@ jobs:
 
       - name: Download rootfs
         run: |
-          wget https://downloads.immortalwrt.org/releases/24.10.0-rc3/targets/x86/64/immortalwrt-24.10.0-rc3-x86-64-rootfs.tar.gz
-          mv immortalwrt-24.10.0-rc3-x86-64-rootfs.tar.gz rootfs.tar.gz
-
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+            wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/x86/64/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz
+            mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz rootfs.tar.gz
+          else
+            wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/arm64/generic/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-arm64-generic-rootfs.tar.gz
+            mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-arm64-generic-rootfs.tar.gz rootfs.tar.gz
+          fi
+    
       - name: Extract rootfs
         run: tar xzf rootfs.tar.gz
 
@@ -26,7 +37,7 @@ jobs:
         run: rm rootfs.tar.gz
 
       - name: Create rootfs.tar
-        run: tar -cf rootfs.tar * # 将当前目录所有内容打包成 rootfs.tar
+        run: tar -cf rootfs.tar *
 
       - name: Create Dockerfile
         run: |
@@ -35,16 +46,35 @@ jobs:
 
       - name: Build Docker Image
         run: docker build -t immortalwrt-image .
-
+      
       - name: Tag Docker Image
-        run: docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
+        run: |
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+              docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
+            else
+              docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}
+          fi
 
       - name: Login to GitHub Container Registry
         run: echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
-        run: docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
-        
+        run: |
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+             docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
+          else
+             docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}
+          fi
+
+      - name: Set Release Name
+        id: set_release_name
+        run: |
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-x86-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          else
+            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-arm64-${{ github.run_id }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -52,7 +82,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           tag_name: ${{ github.run_id }}
-          release_name: Release ${{ github.run_id }}
+          release_name: ${{ steps.set_release_name.outputs.release_name }}
           body: |
             Docker image for ImmortalWrt based on build ${{ github.run_id }}.
             Image is available at ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
@@ -60,8 +90,13 @@ jobs:
           prerelease: false
 
       - name: Write information to docker-image.txt
-        run: echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}" > docker-image.txt
-        
+        run: |
+          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+             echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}" > docker-image.txt
+          else
+             echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}" > docker-image.txt
+          fi
+          
       - name: Upload Docker Image to Release
         uses: actions/upload-release-asset@v1
         env:
