@@ -40,7 +40,7 @@ jobs:
         run: docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
 
       - name: Login to GitHub Container Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin  # 使用 PAT 登录
 
       - name: Push Docker Image
         run: docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
@@ -62,7 +62,7 @@ jobs:
       - name: Upload Docker Image to Release
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: docker-image.txt
@@ -70,3 +70,4 @@ jobs:
           asset_content_type: text/plain
       - name: Write information to docker-image.txt
         run: echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}" > docker-image.txt
+
