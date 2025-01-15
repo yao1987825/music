@@ -26,8 +26,8 @@ jobs:
             wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/x86/64/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz
             mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz rootfs.tar.gz
           else
-            wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/arm64/generic/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-arm64-generic-rootfs.tar.gz
-            mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-arm64-generic-rootfs.tar.gz rootfs.tar.gz
+            wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/armsr/armv8/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-armsr-armv8-rootfs.tar.gz
+            mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-armsr-armv8-rootfs.tar.gz rootfs.tar.gz
           fi
     
       - name: Extract rootfs
