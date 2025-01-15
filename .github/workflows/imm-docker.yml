@@ -25,6 +25,9 @@ jobs:
       - name: Remove original tar.gz
         run: rm rootfs.tar.gz
 
+      - name: Create rootfs.tar
+        run: tar -cf rootfs.tar * # 将当前目录所有内容打包成 rootfs.tar
+
       - name: Create Dockerfile
         run: |
           echo "FROM scratch" > Dockerfile
