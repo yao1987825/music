@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [x86, arm64]
+        arch: [x86, armv8]
     
     env:
       IMMORTALWRT_VERSION: 24.10.0-rc3
@@ -22,7 +22,7 @@ jobs:
 
       - name: Download rootfs
         run: |
-          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
             wget https://downloads.immortalwrt.org/releases/${{ env.IMMORTALWRT_VERSION }}/targets/x86/64/immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz
             mv immortalwrt-${{ env.IMMORTALWRT_VERSION }}-x86-64-rootfs.tar.gz rootfs.tar.gz
           else
@@ -49,10 +49,10 @@ jobs:
       
       - name: Tag Docker Image
         run: |
-          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
               docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
             else
-              docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}
+              docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}
           fi
 
       - name: Login to GitHub Container Registry
@@ -60,19 +60,19 @@ jobs:
 
       - name: Push Docker Image
         run: |
-          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
              docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:x86-${{ github.run_id }}
           else
-             docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:arm64-${{ github.run_id }}
+             docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:armv8-${{ github.run_id }}
           fi
 
       - name: Set Release Name
         id: set_release_name
         run: |
-          if [[ "${{ matrix.arch }}" == "x86" ]]; then
+          if [[ "${{ matrix.arch }}" == "x86, armv8" ]]; then
             echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-x86-${{ github.run_id }}" >> $GITHUB_OUTPUT
           else
-            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-arm64-${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "release_name=immortalwrt-v${{ env.IMMORTALWRT_VERSION }}-armv8-${{ github.run_id }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create GitHub Release
