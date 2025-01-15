@@ -40,7 +40,7 @@ jobs:
         run: docker tag immortalwrt-image ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
 
       - name: Login to GitHub Container Registry
-        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin  # 使用 PAT 登录
+        run: echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
 
       - name: Push Docker Image
         run: docker push ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}
@@ -70,4 +70,3 @@ jobs:
           asset_content_type: text/plain
       - name: Write information to docker-image.txt
         run: echo "ghcr.io/${{ github.repository_owner }}/immortalwrt-image:${{ github.run_id }}" > docker-image.txt
-
