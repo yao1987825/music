@@ -9,7 +9,7 @@ env:
   REPO_BRANCH: master
   CONFIG_FILE: n1-lede/.config
   DIY_SH: n1-lede/diy.sh
-  FILES: N1-LEDE/files
+  FILES: n1-lede/files
   TZ: Asia/Shanghai
 
 jobs:
