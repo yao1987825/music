@@ -1,8 +1,8 @@
 name: Build and Publish ImmortalWrt Docker Image
 
-on:
+#on:
   workflow_dispatch:
-  push:
+ # push:
     branches:
       - main
 
