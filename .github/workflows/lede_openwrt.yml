@@ -167,12 +167,12 @@ jobs:
         tag: OpenWrt_N1_${{ env.PACKAGED_OUTPUTDATE }}
         artifacts: /opt/openwrt_packit/output/*
         allowUpdates: true
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         body: |
           基于lean openwrt构建
           首次使用建议全新刷写
           * 基本信息
-          IP: 192.168.2.2
+          IP: 192.168.6.2
           账户: root
           密码: password
           
