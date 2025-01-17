@@ -15,84 +15,80 @@ on:
   repository_dispatch:  # 允许通过仓库分发事件触发
   workflow_dispatch:  # 允许手动触发工作流
     inputs:
-      ssh: # 手动触发时，接收一个名为 ssh 的输入
+      ssh:  # 手动触发时，接收一个名为 ssh 的输入
         description: 'SSH connection to Actions'
-        required: false # 是否必须提供此输入，这里设为可选
-        default: 'false' # 默认值是 false
+        required: false  # 是否必须提供此输入，这里设为可选
+        default: 'false'  # 默认值是 false
 push: # 当有代码 push 时触发工作流
-  paths:  # 只监控 file/.config 文件路径的变更
+  paths: # 只监控 file/.config 文件路径的变更
     - 'file/.config'
 
 # 设置环境变量
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt  # OpenWrt 仓库 URL
-  REPO_BRANCH: openwrt-23.05  # OpenWrt 仓库分支
+  REPO_BRANCH: openwrt-23.05 # OpenWrt 仓库分支
   FEEDS_CONF: feeds.conf.default  # feeds 配置文件的名称
-  CONFIG_FILE: file/.config  # 自定义配置文件的路径
+  CONFIG_FILE: file/.config # 自定义配置文件的路径
   DIY_P1_SH: diy/diy1.sh  # 自定义脚本1
   DIY_P2_SH: diy/diy2.sh  # 自定义脚本2
   UPLOAD_BIN_DIR: true  # 是否上传 bin 目录
-  UPLOAD_FIRMWARE: true  # 是否上传固件目录
+  UPLOAD_FIRMWARE: true # 是否上传固件目录
   UPLOAD_COWTRANSFER: false  # 是否上传到 cowtransfer (未启用)
   UPLOAD_WETRANSFER: false  # 是否上传到 wetransfer (未启用)
-  UPLOAD_RELEASE: false  # 是否上传到 release (未启用)
-  TZ: Asia/Shanghai  # 时区设置
-  DEVICE_NAME:  # 设备名称（从编译结果中获取）
-  FILE_DATE:  # 文件日期戳
-  DATE:  # 当前时间
-  PRODUCT_NAME: CM520_for_immortalwrt_AdGuardHome # 产品名称, 假设你这里需要一个固定的名字，我暂时加上了
-  FILE_NAME:  # 文件名称
+  UPLOAD_RELEASE: false # 是否上传到 release (未启用)
+  TZ: Asia/Shanghai # 时区设置
+  PRODUCT_NAME: CM520_for_immortalwrt_AdGuardHome # 产品名称，可以自定义
+  # DEVICE_NAME, FILE_DATE 和 DATE 将会在后续步骤中动态设置
 
-# 工作任务定义
 jobs:
-  build: # 构建任务
+  build:  # 构建任务
     runs-on: ubuntu-22.04  # 运行在 ubuntu-22.04 环境
-    steps: # 工作步骤
-      - name: 检出代码  # 步骤名称：检出代码
+    steps:  # 工作步骤
+      - name: 检出代码 # 步骤名称：检出代码
         uses: actions/checkout@v4 # 使用 actions/checkout@v4 action
 
       - name: 初始化环境 # 步骤名称：初始化环境
         env:
-          DEBIAN_FRONTEND: noninteractive # 设置为非交互模式
-        run: | # 运行命令
-          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc # 清理无用文件
+          DEBIAN_FRONTEND: noninteractive  # 设置为非交互模式
+        run: |  # 运行命令
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc  # 清理无用文件
           sudo -E apt-get -qq update  # 更新 apt 源
-          sudo -E apt-get -qq install $(curl -fsSL https://is.gd/depends_ubuntu_2204) # 依赖安装
+          sudo -E apt-get -qq install $(curl -fsSL https://is.gd/depends_ubuntu_2204)  # 依赖安装
           sudo -E apt-get -qq autoremove --purge  # 卸载无用包
-          sudo -E apt-get -qq clean # 清理 apt 缓存
+          sudo -E apt-get -qq clean  # 清理 apt 缓存
           sudo timedatectl set-timezone "$TZ"  # 设置时区
-          sudo mkdir -p /workdir  # 创建工作目录
+          sudo mkdir -p /workdir # 创建工作目录
           sudo chown $USER:$GROUPS /workdir # 更改工作目录权限
 
-      - name: 克隆源代码 # 步骤名称：克隆源代码
-        working-directory: /workdir # 设置工作目录
-        run: | # 运行命令
-          df -hT $PWD # 查看当前磁盘空间
-          git clone $REPO_URL -b $REPO_BRANCH openwrt # 克隆 OpenWrt 仓库
+      - name: 克隆源代码  # 步骤名称：克隆源代码
+        working-directory: /workdir  # 设置工作目录
+        run: |  # 运行命令
+          df -hT $PWD  # 查看当前磁盘空间
+          git clone $REPO_URL -b $REPO_BRANCH openwrt  # 克隆 OpenWrt 仓库
           ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt # 创建软链接
 
-      - name: 加载自定义 feeds # 步骤名称：加载自定义 feeds
+      - name: 加载自定义 feeds  # 步骤名称：加载自定义 feeds
         run: | # 运行命令
           [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default  # 移动 feeds 配置文件
-          chmod +x $DIY_P1_SH  # 添加执行权限
-          cd openwrt # 进入 openwrt 目录
-          $GITHUB_WORKSPACE/$DIY_P1_SH  # 执行自定义脚本1
+          chmod +x $DIY_P1_SH # 添加执行权限
+          cd openwrt  # 进入 openwrt 目录
+          $GITHUB_WORKSPACE/$DIY_P1_SH # 执行自定义脚本1
 
       - name: 更新 feeds # 步骤名称：更新 feeds
-        working-directory: openwrt # 设置工作目录
+        working-directory: openwrt  # 设置工作目录
         run: ./scripts/feeds update -a  # 更新所有 feeds
 
-      - name: 安装 feeds # 步骤名称：安装 feeds
-        working-directory: openwrt  # 设置工作目录
+      - name: 安装 feeds  # 步骤名称：安装 feeds
+        working-directory: openwrt # 设置工作目录
         run: ./scripts/feeds install -a  # 安装所有 feeds
 
-      - name: 加载自定义配置 # 步骤名称：加载自定义配置
+      - name: 加载自定义配置  # 步骤名称：加载自定义配置
         run: | # 运行命令
           [ -e files ] && mv files openwrt/files # 移动 files 目录
           [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config  # 移动 .config 配置文件
-          chmod +x $DIY_P2_SH # 添加执行权限
-          cd openwrt  # 进入 openwrt 目录
-          $GITHUB_WORKSPACE/$DIY_P2_SH # 执行自定义脚本2
+          chmod +x $DIY_P2_SH  # 添加执行权限
+          cd openwrt # 进入 openwrt 目录
+          $GITHUB_WORKSPACE/$DIY_P2_SH  # 执行自定义脚本2
 
       - name: 下载软件包 # 步骤名称：下载软件包
         id: package # 设置 id 为 package
@@ -100,66 +96,69 @@ jobs:
         run: | # 运行命令
           make defconfig  # 生成默认配置
           make download -j8 # 下载软件包
-          find dl -size -1024c -exec ls -l {} \; # 查找过小的下载文件
-          find dl -size -1024c -exec rm -f {} \; # 删除过小的下载文件
+          find dl -size -1024c -exec ls -l {} \;  # 查找过小的下载文件
+          find dl -size -1024c -exec rm -f {} \;  # 删除过小的下载文件
 
       - name: 编译 OpenWrt 固件 # 步骤名称：编译 OpenWrt 固件
-        id: compile # 设置 id 为 compile
+        id: compile  # 设置 id 为 compile
         working-directory: openwrt # 设置工作目录
         run: | # 运行命令
           echo -e "$(nproc) thread compile"  # 输出编译线程数
-          make -j$(nproc) || make -j2 || make -j2 V=s  # 编译固件
+          make -j$(nproc) || make -j2 || make -j2 V=s # 编译固件
           echo "::set-output name=status::success"  # 设置输出状态为 success
-        env: # 设置环境变量
-          DEVICE_NAME: ${{ steps.compile.outputs.status == 'success' &&  grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' }}
-          FILE_DATE: _$(date +"%Y%m%d%H%M")
-          DATE: $(date "+%Y-%m-%d %H:%M:%S")
-      - name: 设置设备名称到环境变量
-        run: |
-          echo "DEVICE_NAME=_${{ env.DEVICE_NAME }}" >> $GITHUB_ENV
-          echo "FILE_DATE=${{ env.FILE_DATE }}" >> $GITHUB_ENV
-          echo "DATE=${{ env.DATE }}" >> $GITHUB_ENV
 
-      - name: 检查空间使用情况 # 步骤名称：检查空间使用情况
-        if: (!cancelled()) # 如果任务没有被取消
-        run: df -hT # 查看磁盘空间
+      - name: 设置设备名称和时间戳  # 步骤名称：设置设备名称和时间戳
+        if: steps.compile.outputs.status == 'success'
+        id: set_env_vars
+        working-directory: openwrt
+        run: |
+          DEVICE_NAME=$(grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/')
+          FILE_DATE=$(date +"%Y%m%d%H%M")
+          DATE=$(date "+%Y-%m-%d %H:%M:%S")
+          echo "DEVICE_NAME=_${DEVICE_NAME}" >> $GITHUB_ENV
+          echo "FILE_DATE=_${FILE_DATE}" >> $GITHUB_ENV
+          echo "DATE=${DATE}" >> $GITHUB_ENV
+
+      - name: 检查空间使用情况  # 步骤名称：检查空间使用情况
+        if: (!cancelled())  # 如果任务没有被取消
+        run: df -hT  # 查看磁盘空间
 
       - name: 上传 bin 目录 # 步骤名称：上传 bin 目录
-        uses: actions/upload-artifact@main  # 使用 actions/upload-artifact action
-        if: success() && env.UPLOAD_BIN_DIR == 'true' # 如果编译成功，并且 UPLOAD_BIN_DIR 为 true
+        uses: actions/upload-artifact@main # 使用 actions/upload-artifact action
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true' # 如果编译成功，并且 UPLOAD_BIN_DIR 为 true
         with:
           name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }} # 设置 artifact 名称
-          path: openwrt/bin # 设置上传路径
+          path: openwrt/bin  # 设置上传路径
 
       - name: 组织文件 # 步骤名称：组织文件
         id: organize # 设置 id 为 organize
-        if: env.UPLOAD_FIRMWARE == 'true' && !cancelled() # 如果 UPLOAD_FIRMWARE 为 true 并且任务没有被取消
+        if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled() # 如果编译成功，并且 UPLOAD_FIRMWARE 为 true 并且任务没有被取消
         run: | # 运行命令
-          cd openwrt/bin/targets/*/*  # 进入目标目录
-          rm -rf packages config.buildinfo feeds.buildinfo sha256sums version.buildinfo *.manifest Packages.tar.gz  # 删除无用文件
-          echo "FIRMWARE=$PWD" >> $GITHUB_ENV  # 设置环境变量 FIRMWARE
-          echo "::set-output name=status::success" # 设置输出状态为 success
+          cd openwrt/bin/targets/*/* # 进入目标目录
+          rm -rf packages config.buildinfo feeds.buildinfo sha256sums version.buildinfo *.manifest Packages.tar.gz # 删除无用文件
+          echo "FIRMWARE=$PWD" >> $GITHUB_ENV # 设置环境变量 FIRMWARE
+          echo "::set-output name=status::success"  # 设置输出状态为 success
 
-      - name: 上传固件目录 # 步骤名称：上传固件目录
-        uses: actions/upload-artifact@main # 使用 actions/upload-artifact action
-        if: success() && env.UPLOAD_FIRMWARE == 'true'  # 如果文件组织成功并且任务没有被取消
+      - name: 上传固件目录  # 步骤名称：上传固件目录
+        uses: actions/upload-artifact@main  # 使用 actions/upload-artifact action
+        if: steps.organize.outputs.status == 'success' && !cancelled() # 如果文件组织成功并且任务没有被取消
         with:
           name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}  # 设置 artifact 名称
 
-      - name: 上传 OpenWrt 固件到 Release # 步骤名称：上传固件到 Release
-        uses: ncipollo/release-action@v1  # 使用 ncipollo/release-action action
-        if: success() && env.UPLOAD_RELEASE == 'true' # 添加上传到 Release 的判断
+      - name: 上传 OpenWrt 固件到 Release  # 步骤名称：上传固件到 Release
+        uses: ncipollo/release-action@v1 # 使用 ncipollo/release-action action
+        if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' # 如果组织文件成功并且 UPLOAD_RELEASE 为 true
         with:
-          name: ${{ env.PRODUCT_NAME }} ${{ env.DATE }}
-          tag: ${{ env.PRODUCT_NAME }}${{ env.FILE_DATE }}
-          artifacts: ${{ env.FIRMWARE }}/*  # 设置要上传的 artifact
-          allowUpdates: true  # 允许更新
-          removeArtifacts: true  # 移除 artifact
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}  # 设置 token
+          name: ${{ env.PRODUCT_NAME }} ${{ env.DATE }}  # 设置 release 名称
+          tag: ${{ env.PRODUCT_NAME }}_${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}  # 设置 tag
+          artifacts: ${{ env.FIRMWARE }}/* # 设置要上传的 artifact
+          allowUpdates: true # 允许更新
+          removeArtifacts: true # 移除 artifact
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # 设置 token
           body: |
             * 星际宝盒CM520-79F_Home&immortalwrt固件  # release 描述
             * AdGuardHome-Home
             * openwrt-23.05
             * Default username: root
-          path: ${{ env.FIRMWARE }} # 设置上传路径
+          path: ${{ env.FIRMWARE }}  # 设置上传路径
 
