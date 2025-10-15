@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐下载器 - GitHub Actions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 1.8em;
+        }
+        p {
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        button {
+            padding: 12px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            white-space: nowrap; /* Prevent button text from wrapping */
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        .instructions {
+            background-color: #e9f0f9;
+            border: 1px solid #cce5ff;
+            border-radius: 8px;
+            padding: 15px;
+            font-size: 0.9em;
+            color: #3a8ee6;
+            margin-top: 30px;
+            text-align: left;
+        }
+        .instructions strong {
+            color: #0056b3;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 GitHub Actions 音乐下载器 🎵</h1>
+        <p>
+            输入歌曲名和歌手（例如：<strong style="color: #28a745;">唯一 邓紫棋</strong>），将通过 GitHub Actions 工作流下载第一首匹配的歌曲及歌词。
+        </p>
+        <form id="searchForm">
+            <div class="input-group">
+                <input type="text" id="searchQuery" placeholder="输入搜索关键词，如：唯一 邓紫棋" required>
+                <button type="submit">搜索并触发下载</button>
+            </div>
+        </form>
+        <div class="instructions">
+            <strong>操作说明：</strong>
+            <ol>
+                <li>在上方输入框中输入歌曲名和歌手。</li>
+                <li>点击 "搜索并触发下载" 按钮。</li>
+                <li>新页面将打开并跳转到 GitHub Actions 手动触发界面，搜索关键词已预填。</li>
+                <li>请在该页面手动点击绿色的 "Run workflow" 按钮来启动下载。</li>
+                <li>下载完成后，歌曲文件将提交到您的 GitHub 仓库的 `downloads` 目录。</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // 阻止表单默认提交行为
+
+            const searchQuery = document.getElementById('searchQuery').value.trim();
+
+            if (!searchQuery) {
+                alert('请输入搜索关键词！');
+                return;
+            }
+
+            // --- 请根据你的仓库信息修改以下两个变量 ---
+            const GITHUB_USERNAME = '你的GitHub用户名'; // 例如: 'octocat'
+            const REPO_NAME = '你的仓库名';      // 例如: 'music-downloader-action'
+            const WORKFLOW_FILE_NAME = 'download_music.yml'; // 你的工作流文件名
+
+            // 构造 GitHub Actions workflow_dispatch 页面 URL
+            // field_search_query 是因为 workflow_dispatch YAML 中的 input name 是 'search_query'
+            // GitHub UI会自动将input name转换为 field_inputname 作为URL参数
+            const workflowTriggerUrl = `https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE_NAME}/dispatch?field_search_query=${encodeURIComponent(searchQuery)}`;
+            
+            console.log("Trigger URL:", workflowTriggerUrl);
+            alert(`即将跳转到 GitHub Actions 页面进行手动触发，搜索关键词已预填："${searchQuery}"。\n请在新页面点击 "Run workflow" 按钮。`);
+            
+            window.open(workflowTriggerUrl, '_blank'); // 在新标签页中打开
+
+            // 可选：在跳转后清空输入框
+            document.getElementById('searchQuery').value = '';
+        });
+    </script>
+</body>
+</html>
