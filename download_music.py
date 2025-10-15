@@ -14,14 +14,13 @@ from bs4 import BeautifulSoup
 # 务必从浏览器中获取最新的 Cookies 和 Headers 并更新这里的字典。
 # 警告：直接硬编码敏感信息不安全，推荐使用GitHub Secrets或环境变量。
 cookies = {
+    'server_name_session': '48ac7eb90472522710b482184d07bcd6',
     'Hm_tf_no8z3ihhnja': '1759891990',
     'Hm_lvt_no8z3ihhnja': '1759891990,1759914819,1759943487,1759975751',
     'Hm_lvt_49c19bcfda4e5fdfea1a9bb225456abe': '1759891991,1759914819,1759943486,1759975753',
     'HMACCOUNT': 'F2D39E6791DCFBD4',
-    'PHPSESSID': 'ba8veihlq2066mpmrbvi4tngm3',
-    'server_name_session': '48ac7eb90472522710b482184d07bcd6',
-    'Hm_lpvt_49c19bcfda4e5fdfea1a9bb225456abe': '1759982677',
-    'Hm_lpvt_no8z3ihhnja': '1759982679',
+    'Hm_lpvt_no8z3ihhnja': '1759975775',
+    'Hm_lpvt_49c19bcfda4e5fdfea1a9bb225456abe': '1759975775',
 }
 
 get_html_headers = {
@@ -30,7 +29,7 @@ get_html_headers = {
     'cache-control': 'max-age=0',
     'dnt': '1',
     'priority': 'u=0, i',
-    'referer': 'https://www.gequhai.com/', # *** 修改此处：改为网站根目录 ***
+    'referer': 'https://www.gequhai.com/',
     'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
