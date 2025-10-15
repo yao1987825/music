@@ -1,0 +1,62 @@
+name: Search and Download Music
+
+on:
+  # 允许手动触发工作流，并接受一个输入参数
+  workflow_dispatch:
+    inputs:
+      search_query:
+        description: '请输入歌曲名或歌手 (例如: "唯一 邓紫棋")'
+        required: true
+        type: string
+        default: '唯一 邓紫棋' # 默认值，方便测试
+
+jobs:
+  download_music_job:
+    runs-on: ubuntu-latest # 使用最新的 Ubuntu 运行环境
+
+    # 默认权限，需要写入内容才能提交下载的文件
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository # 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: Set up Python # 设置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x' # 使用 Python 3 最新版本
+
+      - name: Install system dependencies (FFmpeg) # 安装 FFmpeg 用于音频转换
+        run: |
+          sudo apt-get update
+          sudo apt-get install ffmpeg -y
+
+      - name: Install Python dependencies # 安装 Python 依赖
+        run: pip install -r requirements.txt
+
+      - name: Run music download script # 运行你的 Python 脚本
+        # 通过环境变量将 Secrets 传递给脚本
+        env:
+          MUSIC_DOWNLOAD_COOKIES: ${{ secrets.MUSIC_DOWNLOAD_COOKIES }}
+          MUSIC_DOWNLOAD_GET_HTML_HEADERS: ${{ secrets.MUSIC_DOWNLOAD_GET_HTML_HEADERS }}
+          MUSIC_DOWNLOAD_POST_API_HEADERS: ${{ secrets.MUSIC_DOWNLOAD_POST_API_HEADERS }}
+        run: |
+          python download_music.py "${{ github.event.inputs.search_query }}"
+
+      - name: Commit downloaded files # 提交下载的文件到仓库
+        # 只有在 main 分支上才执行提交，避免在 PR 或其他分支上意外提交
+        if: success() && github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downloads/ # 添加 downloads 文件夹下的所有文件
+          
+          # 检查是否有文件需要提交
+          if git diff --staged --quiet; then
+            echo "没有新的或更改的文件需要提交。"
+          else
+            git commit -m "feat(music): Downloaded for query '${{ github.event.inputs.search_query }}' [skip ci]"
+            git push # 将更改推送到远程仓库
+            echo "已提交下载的文件。"
+          fi
