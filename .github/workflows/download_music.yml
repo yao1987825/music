@@ -36,11 +36,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run music download script # 运行你的 Python 脚本
-        # 通过环境变量将 Secrets 传递给脚本
-        env:
-          MUSIC_DOWNLOAD_COOKIES: ${{ secrets.MUSIC_DOWNLOAD_COOKIES }}
-          MUSIC_DOWNLOAD_GET_HTML_HEADERS: ${{ secrets.MUSIC_DOWNLOAD_GET_HTML_HEADERS }}
-          MUSIC_DOWNLOAD_POST_API_HEADERS: ${{ secrets.MUSIC_DOWNLOAD_POST_API_HEADERS }}
+        # 不再需要 env 部分，因为 cookies 和 headers 已硬编码到脚本中
         run: |
           python download_music.py "${{ github.event.inputs.search_query }}"
 
