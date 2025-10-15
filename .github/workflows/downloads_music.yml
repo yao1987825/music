@@ -1,0 +1,56 @@
+name: Search and Download Music
+
+on:
+  workflow_dispatch:
+    inputs:
+      search_query:
+        description: '请输入歌曲名或歌手 (例如: "唯一 邓紫棋")'
+        required: true
+        type: string
+        default: '唯一 邓紫棋' # 默认值，方便测试
+
+jobs:
+  download_music_job:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run music download script
+        run: |
+          python download_music.py "${{ github.event.inputs.search_query }}"
+
+      - name: Commit downloaded files
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downloads/
+          
+          if git diff --staged --quiet; then
+            echo "没有新的或更改的文件需要提交。"
+          else
+            git commit -m "feat(music): Downloaded for query '${{ github.event.inputs.search_query }}' [skip ci]"
+            git push
+            echo "已提交下载的文件。"
+          fi
