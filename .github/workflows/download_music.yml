@@ -30,29 +30,15 @@ jobs:
       - name: Cache Python dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip # Python pip 默认的缓存路径
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }} # 缓存键包含操作系统和 requirements.txt 的哈希值
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip- # 恢复键，用于匹配旧的缓存，如果精确键不匹配
+            ${{ runner.os }}-pip-
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt # 如果缓存命中，则此步骤会非常快，因为包已经在缓存中
+        run: pip install -r requirements.txt
 
-      # --- 缓存系统依赖 (FFmpeg 相关的 apt 包文件) ---
-      # 注意：这缓存的是 apt 下载的 .deb 包文件，而不是安装在系统中的二进制文件。
-      # 因此 apt-get install 仍然会运行，但如果包已缓存，会跳过下载步骤，只进行安装，速度会快很多。
-      - name: Cache apt packages
-        uses: actions/cache@v4
-        with:
-          path: /var/cache/apt/archives # apt 软件包的缓存路径
-          key: ${{ runner.os }}-apt-${{ hashFiles('requirements.txt', '.github/workflows/download_music.yml') }} # 缓存键包含操作系统和一些文件（如 workflows 或一个特定的 apt_packages.txt）的哈希值
-          restore-keys: |
-            ${{ runner.os }}-apt-
-
-      - name: Install system dependencies (FFmpeg)
-        run: |
-          sudo apt-get update # 更新包列表，这是必须的
-          sudo apt-get install ffmpeg -y # 如果 FFmpeg 的 .deb 包已缓存，这里会跳过下载，直接安装
+      # --- 移除了 FFmpeg 的安装和缓存，因为不再需要 ---
 
       - name: Run music download script
         run: |
