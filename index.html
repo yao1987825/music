@@ -129,10 +129,9 @@
             const REPO_NAME = 'N1_lede_build';      // 例如: 'music-downloader-action'
             const WORKFLOW_FILE_NAME = 'downloads_music.yml'; // 你的工作流文件名
 
-            // 构造 GitHub Actions workflow_dispatch 页面 URL
-            // field_search_query 是因为 workflow_dispatch YAML 中的 input name 是 'search_query'
-            // GitHub UI会自动将input name转换为 field_inputname 作为URL参数
-            const workflowTriggerUrl = `https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE_NAME}/dispatch?field_search_query=${encodeURIComponent(searchQuery)}`;
+            // *** 关键修改：更改预填参数的名称格式 ***
+            // GitHub Actions workflow_dispatch 的输入参数通常采用 run[inputs][input_name] 格式
+            const workflowTriggerUrl = `https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE_NAME}/dispatch?run[inputs][search_query]=${encodeURIComponent(searchQuery)}`;
             
             console.log("Trigger URL:", workflowTriggerUrl);
             alert(`即将跳转到 GitHub Actions 页面进行手动触发，搜索关键词已预填："${searchQuery}"。\n请在新页面点击 "Run workflow" 按钮。`);
