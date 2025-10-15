@@ -30,7 +30,7 @@ get_html_headers = {
     'cache-control': 'max-age=0',
     'dnt': '1',
     'priority': 'u=0, i',
-    'referer': 'https://www.gequhai.com/s/%E9%82%93%E7%B4%AB%E6%A3%8B',
+    'referer': 'https://www.gequhai.com/', # *** 修改此处：改为网站根目录 ***
     'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
@@ -55,7 +55,7 @@ post_api_headers = {
     'sec-fetch-dest': 'empty',
     'sec-fetch-mode': 'cors',
     'sec-fetch-site': 'same-origin',
-    'user-agent': 'Mozilla/50 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
     'x-custom-header': 'SecretKey', # 这个 'SecretKey' 可能需要从网站实时获取或有有效期
     'x-requested-with': 'XMLHttpRequest',
 }
@@ -371,8 +371,14 @@ def get_music_url(song_id):
 
 def search_songs(query, max_retries=MAX_RETRIES):
     """搜索歌曲并返回结果列表。"""
-    encoded_query = urllib.parse.quote(query)
+    # *** 修正 URL 编码方式，移除空格 ***
+    # 观察到gequhai.com在搜索"唯一 邓紫棋"时，其URL路径变为 /s/唯一邓紫棋
+    # 即网站会将搜索词中的空格移除或特殊处理，而不是编码为 %20
+    cleaned_query_for_url = query.replace(' ', '')
+    encoded_query = urllib.parse.quote(cleaned_query_for_url)
     search_url = f"https://www.gequhai.com/s/{encoded_query}"
+    # *** 修正结束 ***
+
     print_status(f"正在搜索: {search_url}")
 
     for attempt in range(max_retries + 1):
@@ -386,6 +392,8 @@ def search_songs(query, max_retries=MAX_RETRIES):
 
             if not song_items:
                 print_status("没有找到歌曲结果。")
+                # DEBUG 打印收到 HTML 片段，如果问题仍然存在，请取消注释查看网站实际返回内容
+                # print_status(f"DEBUG: Received HTML (first 1000 chars):\n{response.text[:1000]}")
                 return []
 
             found_songs = []
