@@ -1,58 +1,74 @@
 name: Search and Download Music
 
 on:
-  # 允许手动触发工作流，并接受一个输入参数
   workflow_dispatch:
     inputs:
       search_query:
         description: '请输入歌曲名或歌手 (例如: "唯一 邓紫棋")'
         required: true
         type: string
-        default: '唯一 邓紫棋' # 默认值，方便测试
+        default: '唯一 邓紫棋'
 
 jobs:
   download_music_job:
-    runs-on: ubuntu-latest # 使用最新的 Ubuntu 运行环境
+    runs-on: ubuntu-latest
 
-    # 默认权限，需要写入内容才能提交下载的文件
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository # 拉取仓库代码
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python # 设置 Python 环境
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x' # 使用 Python 3 最新版本
+          python-version: '3.x'
 
-      - name: Install system dependencies (FFmpeg) # 安装 FFmpeg 用于音频转换
+      # --- 缓存 Python 依赖 ---
+      # 每次 requirements.txt 变化时，都会生成新的缓存键，重新安装
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip # Python pip 默认的缓存路径
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }} # 缓存键包含操作系统和 requirements.txt 的哈希值
+          restore-keys: |
+            ${{ runner.os }}-pip- # 恢复键，用于匹配旧的缓存，如果精确键不匹配
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt # 如果缓存命中，则此步骤会非常快，因为包已经在缓存中
+
+      # --- 缓存系统依赖 (FFmpeg 相关的 apt 包文件) ---
+      # 注意：这缓存的是 apt 下载的 .deb 包文件，而不是安装在系统中的二进制文件。
+      # 因此 apt-get install 仍然会运行，但如果包已缓存，会跳过下载步骤，只进行安装，速度会快很多。
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives # apt 软件包的缓存路径
+          key: ${{ runner.os }}-apt-${{ hashFiles('requirements.txt', '.github/workflows/download_music.yml') }} # 缓存键包含操作系统和一些文件（如 workflows 或一个特定的 apt_packages.txt）的哈希值
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
+      - name: Install system dependencies (FFmpeg)
         run: |
-          sudo apt-get update
-          sudo apt-get install ffmpeg -y
+          sudo apt-get update # 更新包列表，这是必须的
+          sudo apt-get install ffmpeg -y # 如果 FFmpeg 的 .deb 包已缓存，这里会跳过下载，直接安装
 
-      - name: Install Python dependencies # 安装 Python 依赖
-        run: pip install -r requirements.txt
-
-      - name: Run music download script # 运行你的 Python 脚本
-        # 不再需要 env 部分，因为 cookies 和 headers 已硬编码到脚本中
+      - name: Run music download script
         run: |
           python download_music.py "${{ github.event.inputs.search_query }}"
 
-      - name: Commit downloaded files # 提交下载的文件到仓库
-        # 只有在 main 分支上才执行提交，避免在 PR 或其他分支上意外提交
-        if: success() && github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      - name: Commit downloaded files
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add downloads/ # 添加 downloads 文件夹下的所有文件
+          git add downloads/
           
-          # 检查是否有文件需要提交
           if git diff --staged --quiet; then
             echo "没有新的或更改的文件需要提交。"
           else
             git commit -m "feat(music): Downloaded for query '${{ github.event.inputs.search_query }}' [skip ci]"
-            git push # 将更改推送到远程仓库
+            git push
             echo "已提交下载的文件。"
           fi
