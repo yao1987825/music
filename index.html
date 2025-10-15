@@ -106,8 +106,9 @@
             <ol>
                 <li>在上方输入框中输入歌曲名和歌手。</li>
                 <li>点击 "搜索并触发下载" 按钮。</li>
-                <li>新页面将打开并跳转到 GitHub Actions 手动触发界面，搜索关键词已预填。</li>
-                <li>请在该页面手动点击绿色的 "Run workflow" 按钮来启动下载。</li>
+                <li>新页面将打开并跳转到 GitHub Actions 手动触发界面。</li>
+                <li><strong>请在新页面上，把您输入的搜索关键词 <span id="copiedQueryDisplay" style="color:#e74c3c; font-weight:bold;"></span> 粘贴到 "search_query" 输入框中。</strong></li>
+                <li>然后点击绿色的 "Run workflow" 按钮来启动下载。</li>
                 <li>下载完成后，歌曲文件将提交到您的 GitHub 仓库的 `downloads` 目录。</li>
             </ol>
         </div>
@@ -117,7 +118,8 @@
         document.getElementById('searchForm').addEventListener('submit', function(event) {
             event.preventDefault(); // 阻止表单默认提交行为
 
-            const searchQuery = document.getElementById('searchQuery').value.trim();
+            const searchQueryInput = document.getElementById('searchQuery');
+            const searchQuery = searchQueryInput.value.trim();
 
             if (!searchQuery) {
                 alert('请输入搜索关键词！');
@@ -125,21 +127,23 @@
             }
 
             // --- 请根据你的仓库信息修改以下两个变量 ---
-            const GITHUB_USERNAME = 'yaojiwei520'; // 例如: 'octocat'
-            const REPO_NAME = 'N1_lede_build';      // 例如: 'music-downloader-action'
-            const WORKFLOW_FILE_NAME = 'downloads_music.yml'; // 你的工作流文件名
+            const GITHUB_USERNAME = 'yaojiwei520'; // 你的GitHub用户名
+            const REPO_NAME = 'N1_lede_build';      // 你的仓库名
+            const WORKFLOW_FILE_NAME = 'downloads_music.yml'; // 你的工作流文件名 (使用你提供的yml名称)
 
-            // *** 关键修改：更改预填参数的名称格式 ***
-            // GitHub Actions workflow_dispatch 的输入参数通常采用 run[inputs][input_name] 格式
-            const workflowTriggerUrl = `https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE_NAME}/dispatch?run[inputs][search_query]=${encodeURIComponent(searchQuery)}`;
+            // 构造 GitHub Actions workflow_dispatch 页面 URL (不带预填充参数，因为其 UI 不支持)
+            const workflowTriggerUrl = `https://github.com/${GITHUB_USERNAME}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE_NAME}/dispatch`;
             
-            console.log("Trigger URL:", workflowTriggerUrl);
-            alert(`即将跳转到 GitHub Actions 页面进行手动触发，搜索关键词已预填："${searchQuery}"。\n请在新页面点击 "Run workflow" 按钮。`);
+            // 更新提示信息中的关键词
+            const copiedQueryDisplay = document.getElementById('copiedQueryDisplay');
+            copiedQueryDisplay.textContent = `"${searchQuery}"`;
+
+            alert(`即将跳转到 GitHub Actions 页面进行手动触发。\n\n请将以下关键词：\n"${searchQuery}"\n\n复制粘贴到新页面的 "search_query" 输入框中，然后点击 "Run workflow" 按钮。`);
             
             window.open(workflowTriggerUrl, '_blank'); // 在新标签页中打开
 
             // 可选：在跳转后清空输入框
-            document.getElementById('searchQuery').value = '';
+            // searchQueryInput.value = ''; // 暂时不清除，以便用户查看和复制
         });
     </script>
 </body>
