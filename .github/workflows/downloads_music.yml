@@ -3,25 +3,20 @@
 name: Download Music from README
 
 on:
-  # 触发器 1: 当 README.md 文件被推送到 main 或 master 分支时
   push:
     branches:
       - main
       - master
     paths:
-      - 'README.md'  # <--- 已更改
-      
-  # 触发器 2: 允许在 GitHub Actions 页面手动触发
+      - 'README.md'  # <-- 必须是 README.md
+
   workflow_dispatch:
 
 jobs:
   download_music_job:
     runs-on: ubuntu-latest
-
-    # 授予工作流向仓库写入内容的权限
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,28 +39,19 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 核心步骤：运行下载脚本，并将 README.md 作为参数传入
       - name: Run music download script
-        run: python download_music.py README.md  # <--- 已更改
+        run: python download_music.py README.md  # <-- 必须是 README.md
 
-      # 自动将下载的文件提交回仓库
       - name: Commit downloaded files
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if [ ! -d "downloads" ]; then
-            echo "下载目录 'downloads' 不存在，无需提交。"
-            exit 0
-          fi
-          
+          if [ ! -d "downloads" ]; then exit 0; fi
           git add downloads/
-          
-          # 检查暂存区和工作目录是否有变动
           if git diff --staged --quiet && git diff --quiet; then
-            echo "没有文件变动需要提交。"
+            echo "No file changes to commit."
           else
             git commit -m "sync(music): Update music library from README [skip ci]"
             git push
-            echo "已成功将文件变动提交到仓库。"
+            echo "Committed file changes successfully."
           fi
