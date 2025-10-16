@@ -1,15 +1,15 @@
 # .github/workflows/download-music.yml
 
-name: Download Music from List
+name: Download Music from README
 
 on:
-  # 触发器 1: 当 song-list.md 文件被推送到 main 或 master 分支时
+  # 触发器 1: 当 README.md 文件被推送到 main 或 master 分支时
   push:
     branches:
       - main
       - master
     paths:
-      - 'README.md'
+      - 'README.md'  # <--- 已更改
       
   # 触发器 2: 允许在 GitHub Actions 页面手动触发
   workflow_dispatch:
@@ -44,10 +44,9 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 核心步骤：运行下载脚本，并将 song-list.md 作为参数传入
+      # 核心步骤：运行下载脚本，并将 README.md 作为参数传入
       - name: Run music download script
-        run: |
-          python download_music.py song-list.md
+        run: python download_music.py README.md  # <--- 已更改
 
       # 自动将下载的文件提交回仓库
       - name: Commit downloaded files
@@ -55,7 +54,6 @@ jobs:
           git config user.name "GitHub Actions Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 检查 'downloads' 目录是否存在，不存在则跳过
           if [ ! -d "downloads" ]; then
             echo "下载目录 'downloads' 不存在，无需提交。"
             exit 0
@@ -63,12 +61,11 @@ jobs:
           
           git add downloads/
           
-          # 检查是否有文件被暂存 (staged)。如果没有新文件，则不执行提交。
-          if git diff --staged --quiet; then
-            echo "没有新的音乐文件需要提交。"
+          # 检查暂存区和工作目录是否有变动
+          if git diff --staged --quiet && git diff --quiet; then
+            echo "没有文件变动需要提交。"
           else
-            # 使用 [skip ci] 来防止本次提交再次触发工作流，避免死循环
-            git commit -m "feat(music): Add new songs from list [skip ci]"
+            git commit -m "sync(music): Update music library from README [skip ci]"
             git push
-            echo "已成功将下载的音乐文件提交到仓库。"
+            echo "已成功将文件变动提交到仓库。"
           fi
