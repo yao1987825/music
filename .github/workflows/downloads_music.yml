@@ -9,7 +9,7 @@ on:
       - main
       - master
     paths:
-      - 'song-list.md'
+      - 'README.md'
       
   # 触发器 2: 允许在 GitHub Actions 页面手动触发
   workflow_dispatch:
