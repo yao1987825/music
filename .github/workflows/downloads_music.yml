@@ -1,18 +1,24 @@
-name: Search and Download Music
+# .github/workflows/download-music.yml
+
+name: Download Music from List
 
 on:
+  # 触发器 1: 当 song-list.md 文件被推送到 main 或 master 分支时
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'song-list.md'
+      
+  # 触发器 2: 允许在 GitHub Actions 页面手动触发
   workflow_dispatch:
-    inputs:
-      search_query:
-        description: '请输入歌曲名或歌手 (例如: "唯一 邓紫棋")'
-        required: true
-        type: string
-        default: '唯一 邓紫棋' # 默认值，方便测试
 
 jobs:
   download_music_job:
     runs-on: ubuntu-latest
 
+    # 授予工作流向仓库写入内容的权限
     permissions:
       contents: write
 
@@ -20,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.x
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
@@ -34,23 +40,35 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+      # 核心步骤：运行下载脚本，并将 song-list.md 作为参数传入
       - name: Run music download script
         run: |
-          python download_music.py "${{ github.event.inputs.search_query }}"
+          python download_music.py song-list.md
 
+      # 自动将下载的文件提交回仓库
       - name: Commit downloaded files
-        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 检查 'downloads' 目录是否存在，不存在则跳过
+          if [ ! -d "downloads" ]; then
+            echo "下载目录 'downloads' 不存在，无需提交。"
+            exit 0
+          fi
+          
           git add downloads/
           
+          # 检查是否有文件被暂存 (staged)。如果没有新文件，则不执行提交。
           if git diff --staged --quiet; then
-            echo "没有新的或更改的文件需要提交。"
+            echo "没有新的音乐文件需要提交。"
           else
-            git commit -m "feat(music): Downloaded for query '${{ github.event.inputs.search_query }}' [skip ci]"
+            # 使用 [skip ci] 来防止本次提交再次触发工作流，避免死循环
+            git commit -m "feat(music): Add new songs from list [skip ci]"
             git push
-            echo "已提交下载的文件。"
+            echo "已成功将下载的音乐文件提交到仓库。"
           fi
