@@ -81,18 +81,14 @@ def vkeys_api_request(url: str) -> Dict[str, Any] | None:
             if data.get("code") == 200 and data.get("data"):
                 return data["data"]
             else:
-                print_status(f"API 返回错误: {data.get('message', '未知业务错误')}")
                 return None
-        except requests.exceptions.RequestException as e:
-            print_status(f"API 请求失败 (尝试 {attempt + 1}/{MAX_RETRIES + 1}): {e}")
+        except requests.exceptions.RequestException:
             if attempt < MAX_RETRIES:
                 time.sleep(INITIAL_REQUEST_DELAY * (RETRY_DELAY_MULTIPLIER ** attempt))
     return None
 
 def process_single_song(query: str, expected_files: Set[Path]) -> bool:
-    """
-    处理单首歌曲下载，并将成功生成的文件路径添加到 expected_files 集合中。
-    """
+    """处理单首歌曲下载，并将成功生成的文件路径添加到 expected_files 集合中。"""
     print_status(f"\n{'='*15} 开始处理: {query} {'='*15}")
     
     processed_query = query.replace('-', ' ').strip()
@@ -109,7 +105,6 @@ def process_single_song(query: str, expected_files: Set[Path]) -> bool:
 
     filename_prefix = sanitize_filename(f"{title} - {artist}")
 
-    # 获取音乐链接
     details_api = f"{BASE_URL}/geturl?id={song_id}"
     details = vkeys_api_request(details_api)
     if not details or not details.get('url'):
@@ -118,7 +113,6 @@ def process_single_song(query: str, expected_files: Set[Path]) -> bool:
     music_format = details.get('format', 'mp3')
     music_file_path = DOWNLOAD_DIR / f"{filename_prefix}.{music_format}"
     
-    # 获取歌词
     lyric_api = f"{BASE_URL}/lyric?id={song_id}"
     lyrics_data = vkeys_api_request(lyric_api)
     lrc_content = lyrics_data.get('lrc', '') if lyrics_data else ''
@@ -126,8 +120,6 @@ def process_single_song(query: str, expected_files: Set[Path]) -> bool:
     lrc_file_path = DOWNLOAD_DIR / f"{filename_prefix}.lrc"
     trans_file_path = DOWNLOAD_DIR / f"{filename_prefix}.trans.txt"
     
-    # 执行下载和保存
-    # 只有当文件不存在或下载/保存成功时，才将其加入期望列表
     if music_file_path.exists() or download_streaming_file(details['url'], music_file_path):
         expected_files.add(music_file_path)
 
@@ -137,7 +129,6 @@ def process_single_song(query: str, expected_files: Set[Path]) -> bool:
     if trans_content and (trans_file_path.exists() or save_lyric_file(trans_content, trans_file_path)):
         expected_files.add(trans_file_path)
 
-    print_status(f"✅ 歌曲 '{title}' 处理完毕。")
     return True
 
 def sync_directory(expected_files: Set[Path]):
@@ -156,7 +147,6 @@ def sync_directory(expected_files: Set[Path]):
         print_status("目录已是最新状态，没有文件需要删除。")
         return
 
-    print_status(f"发现 {len(files_to_delete)} 个需要删除的旧文件...")
     for f in files_to_delete:
         try:
             f.unlink()
@@ -166,28 +156,58 @@ def sync_directory(expected_files: Set[Path]):
     print_status("目录清理完成。")
 
 
+def parse_markdown_table(lines: List[str]) -> List[str]:
+    """从 Markdown 文件行中解析出表格里的歌曲查询列表。"""
+    queries = []
+    is_table_content = False
+    for line in lines:
+        cleaned_line = line.strip()
+        if not cleaned_line.startswith('|'):
+            is_table_content = False  # 如果遇到非表格行，就重置状态
+            continue
+
+        if '---' in cleaned_line:
+            is_table_content = True  # 从分隔线之后开始算是表格内容
+            continue
+
+        if not is_table_content:
+            continue
+
+        # 切分表格行
+        columns = [col.strip() for col in cleaned_line.split('|')]
+        # 期望格式: ['', '歌手', '歌曲', ''] -> 长度为4
+        if len(columns) >= 3:
+            artist = columns[1]
+            song_title = columns[2]
+            
+            # 确保提取的不是空内容
+            if artist and song_title:
+                queries.append(f"{artist} {song_title}")
+    return queries
+
+
 def main(filepath: str):
     print_status("--- 欢迎使用 GitHub Actions 音乐下载与同步工作流 ---")
-    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True) # 确保下载目录存在
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
     
-    print_status(f"--- 步骤 1: 读取歌曲列表文件: {filepath} ---")
+    print_status(f"--- 步骤 1: 读取并解析歌曲列表文件: {filepath} ---")
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     except FileNotFoundError:
         sys.exit(1)
 
-    song_queries = [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
+    # 使用新的解析函数
+    song_queries = parse_markdown_table(lines)
 
     if not song_queries:
-        print_status("歌曲列表为空。")
+        print_status("在 Markdown 表格中没有找到有效的歌曲。")
     else:
-        print_status(f"找到 {len(song_queries)} 首歌曲待处理。")
+        print_status(f"从表格中解析出 {len(song_queries)} 首歌曲待处理。")
     
     print_status("\n" + "="*60)
     print_status("--- 步骤 2: 处理和下载歌曲 ---")
     
-    # 这个集合将保存所有应该存在于 downloads 目录中的文件
     expected_files_from_list: Set[Path] = set()
     
     for i, query in enumerate(song_queries, 1):
@@ -195,12 +215,10 @@ def main(filepath: str):
         process_single_song(query, expected_files_from_list)
         time.sleep(2) 
 
-    # 执行同步清理
     sync_directory(expected_files_from_list)
     
     print_status("\n" + "="*60)
     print_status("--- 工作流执行完毕 ---")
-    print_status("【工作流结果】: 成功完成。")
     sys.exit(0)
 
 if __name__ == "__main__":
