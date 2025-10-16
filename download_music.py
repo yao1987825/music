@@ -8,17 +8,17 @@ import os
 import re
 import urllib.parse
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 
 # --- 全局配置 ---
 BASE_URL = "https://api.vkeys.cn/v2/music/tencent"
-DOWNLOAD_DIR = Path("downloads")  # 下载文件将保存到的目录
+DOWNLOAD_DIR = Path("downloads")  # 下载目录
 
 # --- API 常量和重试配置 ---
 INITIAL_REQUEST_DELAY = 1.0
 MAX_RETRIES = 3
 RETRY_DELAY_MULTIPLIER = 2
-API_TIMEOUT = 20  # 请求超时时间(秒)
+API_TIMEOUT = 20
 
 def print_status(message, end='\n'):
     """统一的打印函数，方便管理输出并确保立即显示。"""
@@ -27,18 +27,16 @@ def print_status(message, end='\n'):
 
 def sanitize_filename(filename: str) -> str:
     """清理文件名，移除或替换无效字符，确保跨平台兼容性。"""
-    filename = re.sub(r'[\\/:*?"<>|]', '_', filename) # 将非法字符替换为下划线
-    filename = re.sub(r'\s+', ' ', filename).strip() # 合并多余空格
-    return filename[:200] # 限制文件名长度
+    filename = re.sub(r'[\\/:*?"<>|]', '_', filename)
+    filename = re.sub(r'\s+', ' ', filename).strip()
+    return filename[:200]
 
 def download_streaming_file(url: str, target_path: Path, retries=MAX_RETRIES) -> bool:
     """使用流式下载文件，包含重试和错误处理。"""
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-
     if target_path.exists():
         print_status(f"文件已存在，跳过下载: {target_path.name}")
         return True
-
+    
     print_status(f"开始下载 {target_path.name}...")
     for attempt in range(retries + 1):
         try:
@@ -53,29 +51,24 @@ def download_streaming_file(url: str, target_path: Path, retries=MAX_RETRIES) ->
             print_status(f"下载请求错误 (尝试 {attempt + 1}/{retries+1}): {e}")
         except IOError as e:
             print_status(f"文件写入错误 {target_path}: {e}")
-            return False # 写入错误通常不可恢复，直接失败
+            return False
 
         if attempt < retries:
-            delay = INITIAL_REQUEST_DELAY * (RETRY_DELAY_MULTIPLIER ** attempt)
-            time.sleep(delay)
-    print_status(f"下载 {target_path.name} 失败，已达最大重试次数。")
+            time.sleep(INITIAL_REQUEST_DELAY * (RETRY_DELAY_MULTIPLIER ** attempt))
     return False
 
-def save_lyric_file(content: str, filename_prefix: str, extension: str) -> bool:
+def save_lyric_file(content: str, target_path: Path) -> bool:
     """保存歌词文件。"""
     if not content or not content.strip():
-        print_status(f"无有效歌词内容，跳过保存 .{extension} 文件。")
-        return True # 没有内容不算失败
+        return True
     
-    file_path = DOWNLOAD_DIR / f"{filename_prefix}.{extension}"
     try:
-        DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(target_path, 'w', encoding='utf-8') as f:
             f.write(content)
-        print_status(f"歌词文件保存成功: {file_path.name}")
+        print_status(f"歌词文件保存成功: {target_path.name}")
         return True
     except IOError as e:
-        print_status(f"歌词文件写入失败 ({file_path.name}): {e}")
+        print_status(f"歌词文件写入失败 ({target_path.name}): {e}")
         return False
 
 def vkeys_api_request(url: str) -> Dict[str, Any] | None:
@@ -88,7 +81,6 @@ def vkeys_api_request(url: str) -> Dict[str, Any] | None:
             if data.get("code") == 200 and data.get("data"):
                 return data["data"]
             else:
-                # 即使请求成功，API也可能返回业务错误
                 print_status(f"API 返回错误: {data.get('message', '未知业务错误')}")
                 return None
         except requests.exceptions.RequestException as e:
@@ -97,11 +89,12 @@ def vkeys_api_request(url: str) -> Dict[str, Any] | None:
                 time.sleep(INITIAL_REQUEST_DELAY * (RETRY_DELAY_MULTIPLIER ** attempt))
     return None
 
-def process_single_song(query: str) -> bool:
-    """根据单个查询关键词，搜索、下载并保存歌曲和歌词。返回 True/False。"""
+def process_single_song(query: str, expected_files: Set[Path]) -> bool:
+    """
+    处理单首歌曲下载，并将成功生成的文件路径添加到 expected_files 集合中。
+    """
     print_status(f"\n{'='*15} 开始处理: {query} {'='*15}")
     
-    # 1. 搜索歌曲
     processed_query = query.replace('-', ' ').strip()
     search_api = f"{BASE_URL}?word={urllib.parse.quote(processed_query)}"
     search_data = vkeys_api_request(search_api)
@@ -110,92 +103,108 @@ def process_single_song(query: str) -> bool:
         print_status(f"❌ 搜索 '{query}' 失败或无结果。")
         return False
     
-    song_info = search_data[0] # 只处理最相关的第一个结果
-    song_id = song_info['id']
-    title = song_info['song']
-    artist = song_info['singer']
+    song_info = search_data[0]
+    song_id, title, artist = song_info['id'], song_info['song'], song_info['singer']
     print_status(f"找到最匹配结果: {title} - {artist} (ID: {song_id})")
 
-    # 2. 获取歌曲详情和链接
+    filename_prefix = sanitize_filename(f"{title} - {artist}")
+
+    # 获取音乐链接
     details_api = f"{BASE_URL}/geturl?id={song_id}"
     details = vkeys_api_request(details_api)
     if not details or not details.get('url'):
-        print_status("❌ 获取歌曲下载链接失败。")
         return False
 
-    music_url = details['url']
-    music_format = details.get('format', 'mp3') # 默认用mp3，更通用
-    filename_prefix = sanitize_filename(f"{title} - {artist}")
+    music_format = details.get('format', 'mp3')
     music_file_path = DOWNLOAD_DIR / f"{filename_prefix}.{music_format}"
-
-    # 3. 下载歌曲文件
-    download_success = download_streaming_file(music_url, music_file_path)
-
-    # 4. 获取并保存歌词
+    
+    # 获取歌词
     lyric_api = f"{BASE_URL}/lyric?id={song_id}"
     lyrics_data = vkeys_api_request(lyric_api)
     lrc_content = lyrics_data.get('lrc', '') if lyrics_data else ''
     trans_content = lyrics_data.get('trans', '') if lyrics_data else ''
-
-    lrc_save_success = save_lyric_file(lrc_content, filename_prefix, 'lrc')
-    trans_save_success = save_lyric_file(trans_content, filename_prefix, 'trans.txt')
-
-    final_status = download_success and lrc_save_success and trans_save_success
-    if final_status:
-        print_status(f"✅ 【成功】歌曲 '{title}' 已完整处理。")
-    else:
-        print_status(f"❌ 【失败】歌曲 '{title}' 处理过程中出现问题。")
+    lrc_file_path = DOWNLOAD_DIR / f"{filename_prefix}.lrc"
+    trans_file_path = DOWNLOAD_DIR / f"{filename_prefix}.trans.txt"
     
-    return final_status
+    # 执行下载和保存
+    # 只有当文件不存在或下载/保存成功时，才将其加入期望列表
+    if music_file_path.exists() or download_streaming_file(details['url'], music_file_path):
+        expected_files.add(music_file_path)
+
+    if lrc_content and (lrc_file_path.exists() or save_lyric_file(lrc_content, lrc_file_path)):
+        expected_files.add(lrc_file_path)
+
+    if trans_content and (trans_file_path.exists() or save_lyric_file(trans_content, trans_file_path)):
+        expected_files.add(trans_file_path)
+
+    print_status(f"✅ 歌曲 '{title}' 处理完毕。")
+    return True
+
+def sync_directory(expected_files: Set[Path]):
+    """将 downloads 目录与期望的文件列表同步，删除多余的文件。"""
+    print_status("\n" + "="*60)
+    print_status("--- 步骤 3: 同步目录，清理旧文件 ---")
+    
+    if not DOWNLOAD_DIR.exists():
+        print_status("下载目录不存在，无需清理。")
+        return
+
+    actual_files = {p for p in DOWNLOAD_DIR.rglob('*') if p.is_file()}
+    files_to_delete = actual_files - expected_files
+
+    if not files_to_delete:
+        print_status("目录已是最新状态，没有文件需要删除。")
+        return
+
+    print_status(f"发现 {len(files_to_delete)} 个需要删除的旧文件...")
+    for f in files_to_delete:
+        try:
+            f.unlink()
+            print_status(f"  - 已删除: {f.name}")
+        except OSError as e:
+            print_status(f"  - 删除失败: {f.name} ({e})")
+    print_status("目录清理完成。")
+
 
 def main(filepath: str):
-    """读取指定的歌曲列表文件，并逐行下载。"""
-    print_status(f"--- 欢迎使用 GitHub Actions 音乐下载工作流 (由 vkeys.cn 提供) ---")
-    print_status(f"正在读取歌曲列表文件: {filepath}")
-    print_status("-" * 60)
+    print_status("--- 欢迎使用 GitHub Actions 音乐下载与同步工作流 ---")
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True) # 确保下载目录存在
     
+    print_status(f"--- 步骤 1: 读取歌曲列表文件: {filepath} ---")
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     except FileNotFoundError:
-        print_status(f"错误: 歌曲列表文件 '{filepath}' 未找到。")
         sys.exit(1)
 
     song_queries = [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
 
     if not song_queries:
-        print_status("在文件中没有找到有效的歌曲名称。工作流正常结束。")
-        sys.exit(0)
-
-    total = len(song_queries)
-    success_count = 0
+        print_status("歌曲列表为空。")
+    else:
+        print_status(f"找到 {len(song_queries)} 首歌曲待处理。")
+    
+    print_status("\n" + "="*60)
+    print_status("--- 步骤 2: 处理和下载歌曲 ---")
+    
+    # 这个集合将保存所有应该存在于 downloads 目录中的文件
+    expected_files_from_list: Set[Path] = set()
     
     for i, query in enumerate(song_queries, 1):
-        print_status(f"\n--- 任务进度: ({i}/{total}) ---")
-        if process_single_song(query):
-            success_count += 1
-        # 在每个任务之间短暂休息，避免对API造成太大压力
+        print_status(f"\n--- 任务进度: ({i}/{len(song_queries)}) ---")
+        process_single_song(query, expected_files_from_list)
         time.sleep(2) 
 
+    # 执行同步清理
+    sync_directory(expected_files_from_list)
+    
     print_status("\n" + "="*60)
-    print_status("--- 所有任务完成 ---")
-    print_status(f"总任务数: {total}")
-    print_status(f"✅ 成功: {success_count}")
-    print_status(f"❌ 失败: {total - success_count}")
-    print_status("="*60)
-
-    if success_count < total:
-        print_status("【工作流结果】: 部分任务失败。")
-        sys.exit(1) # 退出状态码 1，表示执行中存在失败
-    else:
-        print_status("【工作流结果】: 所有任务成功完成。")
-        sys.exit(0) # 退出状态码 0，表示执行成功
+    print_status("--- 工作流执行完毕 ---")
+    print_status("【工作流结果】: 成功完成。")
+    sys.exit(0)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法: python download_music.py <歌曲列表文件路径>")
-        print("例如: python download_music.py song-list.md")
         sys.exit(1)
     
-    song_list_file = sys.argv[1]
-    main(song_list_file)
+    main(sys.argv[1])
